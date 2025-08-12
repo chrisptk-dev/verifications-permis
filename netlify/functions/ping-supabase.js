@@ -21,4 +21,4 @@ export default async () => {
   return new Response("ok", { status: 200 });
 };
 
-export const config = { schedule: "@weekly" };
+export const config = { schedule: "@daily" };
