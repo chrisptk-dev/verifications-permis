@@ -1,32 +1,24 @@
 /* eslint-disable */
 // netlify/functions/ping-supabase.js
 
-const URL =
-  "https://hhyslneujnkjpxzysvbh.supabase.co/rest/v1/verifications?select=id";
+import { createClient } from "@supabase/supabase-js";
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.NEXT_PUBLIC_SUPABASE_KEY
+);
 
 export default async () => {
-  try {
-    const res = await fetch(URL, {
-      headers: {
-        apikey: process.env.SUPABASE_ANON_KEY,
-        Authorization: `Bearer ${process.env.SUPABASE_ANON_KEY}`,
-      },
-    });
+  const { error, count } = await supabase
+    .from("verifications")
+    .select("id", { count: "exact", head: true });
 
-    // On lit pour forcer la requête et logguer un résumé
-    const data = await res.json().catch(() => null);
-    console.log(
-      `Ping Supabase → status=${res.status}, rows=${
-        Array.isArray(data) ? data.length : "n/a"
-      }`
-    );
-
-    return new Response("ok", { status: 200 });
-  } catch (e) {
-    console.error("Ping error:", e);
+  if (error) {
+    console.error("Ping error:", error.message);
     return new Response("error", { status: 500 });
   }
+  console.log("Ping Supabase OK - rows:", count ?? 0);
+  return new Response("ok", { status: 200 });
 };
 
-// Planification hebdo
 export const config = { schedule: "@weekly" };

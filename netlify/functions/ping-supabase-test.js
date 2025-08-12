@@ -1,26 +1,17 @@
 /* eslint-disable */
-// netlify/functions/ping-supabase-test.js
-// Appelable via:
-// https://verifications-permis.netlify.app/.netlify/functions/ping-supabase-test
 
-const URL =
-  "https://hhyslneujnkjpxzysvbh.supabase.co/rest/v1/verifications?select=id";
+import { createClient } from "@supabase/supabase-js";
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.NEXT_PUBLIC_SUPABASE_KEY
+);
 
 export default async () => {
-  try {
-    const res = await fetch(URL, {
-      headers: {
-        apikey: process.env.SUPABASE_ANON_KEY,
-        Authorization: `Bearer ${process.env.SUPABASE_ANON_KEY}`,
-      },
-    });
+  const { error, count } = await supabase
+    .from("verifications")
+    .select("id", { count: "exact", head: true });
 
-    const text = await res.text(); // on garde le texte brut pour debug
-    return new Response(
-      `status=${res.status} ${res.statusText}\nbody=${text.slice(0, 300)}...`,
-      { status: res.ok ? 200 : 500 }
-    );
-  } catch (e) {
-    return new Response(`ERROR: ${e.message}`, { status: 500 });
-  }
+  if (error) return new Response(`ERROR: ${error.message}`, { status: 500 });
+  return new Response(`ok - rows=${count ?? 0}`, { status: 200 });
 };
