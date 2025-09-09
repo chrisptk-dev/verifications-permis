@@ -4,7 +4,7 @@ import Link from "next/link.js";
 export default function Home() {
   return (
     <main className="min-h-screen bg-[#00264d] flex flex-col items-center justify-center px-4 py-8 space-y-6">
-      <h1 className="text-white text-2xl font-bold mb-6">Choisi un thème</h1>
+      <h1 className="text-white text-2xl font-bold mb-6">Choisis un thème</h1>
 
       <div className="w-full max-w-xs space-y-4">
         <Link

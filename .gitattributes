@@ -1,0 +1,31 @@
+# Normalise les fins de lignes (toujours LF, quelle que soit la machine)
+* text=auto eol=lf
+
+# Garder les fichiers binaires intacts (pas de conversion de fins de ligne)
+*.jpg  binary
+*.jpeg binary
+*.png  binary
+*.gif  binary
+*.ico  binary
+*.pdf  binary
+*.zip  binary
+*.gz   binary
+*.mp4  binary
+*.mov  binary
+*.avi  binary
+*.mp3  binary
+*.wav  binary
+
+# Scripts et fichiers web → toujours LF
+*.sh   text eol=lf
+*.js   text eol=lf
+*.ts   text eol=lf
+*.jsx  text eol=lf
+*.tsx  text eol=lf
+*.css  text eol=lf
+*.scss text eol=lf
+*.html text eol=lf
+*.json text eol=lf
+*.yml  text eol=lf
+*.yaml text eol=lf
+*.md   text eol=lf
