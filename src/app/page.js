@@ -1,11 +1,11 @@
 import Image from "next/image";
 import Link from "next/link.js";
+import HomeResume from "@/components/HomeResume";
 
 export default function Home() {
   return (
     <main className="min-h-screen bg-[#00264d] flex flex-col items-center justify-center px-4 py-8 space-y-6">
       <h1 className="text-white text-2xl font-bold mb-6">Choisis un thème</h1>
-
       <div className="w-full max-w-xs space-y-4">
         <Link
           href="/theme/interieur"
@@ -40,12 +40,8 @@ export default function Home() {
           PREMIER SECOURS
         </Link>
       </div>
-
-      <input
-        type="text"
-        placeholder="Recherche par mots clé"
-        className="mt-8 w-full max-w-xs p-3 rounded-full text-center text-sm text-gray-800 placeholder-gray-400"
-      />
+      <HomeResume />{" "}
+      {/* <= le bouton “Continuer là où j’en étais” apparaît ici */}
     </main>
   );
 }
