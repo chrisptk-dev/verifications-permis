@@ -4,6 +4,7 @@ import StudyList from "@/components/StudyList";
 import LastVisitedWriter from "@/components/LastVisitedWriter";
 
 
+
 export const dynamic = "force-dynamic";
 
 export default async function Page({ params }) {

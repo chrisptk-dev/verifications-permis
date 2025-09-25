@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link.js";
 import HomeResume from "@/components/HomeResume";
+import HomeProgress from "@/components/HomeProgress";
 
 export default function Home() {
   return (
@@ -42,6 +43,8 @@ export default function Home() {
       </div>
       <HomeResume />{" "}
       {/* <= le bouton “Continuer là où j’en étais” apparaît ici */}
+      <HomeProgress />{" "}
+      {/* récap par thème (s’affiche seulement s’il y a déjà des vues) */}
     </main>
   );
 }
