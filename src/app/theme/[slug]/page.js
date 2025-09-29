@@ -2,6 +2,11 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import StudyList from "@/components/StudyList";
 import LastVisitedWriter from "@/components/LastVisitedWriter";
+import RemainingBadge from "@/components/RemainingBadge";
+import TotalWriter from "@/components/TotalWriter";
+
+
+
 
 
 export const dynamic = "force-dynamic";
@@ -45,6 +50,7 @@ export default async function Page({ params }) {
       style={{ backgroundColor: THEME_COLORS.pageBg }}
     >
       <LastVisitedWriter slug={slug} />
+      <TotalWriter slug={slug} total={fiches.length} />
 
       <div className="mx-auto max-w-6xl px-4 py-6 md:py-8">
         {/* Feuille centrale – on pose la couleur dans une CSS var --c */}
@@ -52,41 +58,36 @@ export default async function Page({ params }) {
           className="relative isolate rounded-3xl bg-white ring-1 ring-black/5 shadow-lg"
           style={{ ["--c"]: color }}
         >
-          {/* Header sticky, offset mobile + menu non coupé */}
           <div className="sticky z-20 top-2 sm:top-3 md:top-0 overflow-visible rounded-t-3xl border-b border-zinc-200/70 bg-white/95 supports-[backdrop-filter]:bg-white/70 backdrop-blur md:backdrop-blur-none">
             <div className="px-4 py-3 sm:px-6 sm:py-4 space-y-3">
-              {/* Ligne 1 : retour + titre + compteur coloré */}
-              <div className="flex items-start sm:items-center justify-between gap-2">
+              {/* L1: Maison (gauche) • Changer de thème (droite) */}
+              <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <BackHome />
+                  <HomeButton />
+                </div>
+                <ThemeSwitcherMobile current={slug} colors={THEME_COLORS} />
+              </div>
+
+              {/* L2: Titre + badge (gauche) • Switcher desktop (droite) */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
                   <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-zinc-900">
                     {theme.label}
                   </h1>
+                  {/* Compteur rond couleur thème = fiches restantes */}
+                  <RemainingBadge
+                    storageKey={`rev-${slug}`}
+                    total={fiches.length}
+                    color={color} // tu l’as déjà calculée plus haut
+                  />
                 </div>
-
-                {/* Chip du compteur = couleur du thème */}
-                <span
-                  className="
-                    shrink-0 inline-flex items-center justify-center rounded-full
-                    px-3 py-1 text-[11px] font-medium whitespace-nowrap min-w-[92px]
-                    text-white
-                    [background:var(--c)]
-                  "
-                >
-                  {fiches.length} élément{fiches.length > 1 ? "s" : ""}
-                </span>
-              </div>
-
-              {/* Ligne 2 : switcher desktop + mobile (coloré) */}
-              <div className="flex items-center justify-between">
                 <ThemeSwitcherDesktop current={slug} colors={THEME_COLORS} />
-                <ThemeSwitcherMobile current={slug} colors={THEME_COLORS} />
               </div>
             </div>
           </div>
 
           {/* Contenu */}
-          <div className="px-3 pb-6 pt-4 sm:px-6">
+          <div className="px-3 pb-8 pt-4 sm:px-6">
             {error && (
               <p className="mb-3 text-sm text-red-600">
                 Erreur : {error.message}
@@ -98,7 +99,9 @@ export default async function Page({ params }) {
                 Aucune fiche trouvée pour ce thème.
               </p>
             ) : (
-              <StudyList fiches={fiches} storageKey={`rev-${slug}`} />
+              <div className="rounded-2xl bg-zinc-50 p-3 sm:p-4">
+                <StudyList fiches={fiches} storageKey={`rev-${slug}`} />
+              </div>
             )}
           </div>
         </div>
@@ -109,25 +112,24 @@ export default async function Page({ params }) {
 
 /* ===== UI bits ===== */
 
-function BackHome() {
+function HomeButton() {
   return (
     <Link
       href="/"
-      className="inline-flex items-center gap-1.5 rounded-full ring-1 ring-inset ring-black/5 px-2.5 py-1.5 text-sm text-zinc-600 hover:bg-zinc-100"
-      aria-label="Retour à l’accueil"
+      aria-label="Accueil"
+      className="inline-flex h-9 w-9 items-center justify-center rounded-full ring-1 ring-inset ring-zinc-300 bg-white text-zinc-700 hover:bg-zinc-100"
     >
-      <svg
-        viewBox="0 0 20 20"
-        fill="currentColor"
-        className="h-4 w-4"
-        aria-hidden="true"
-      >
-        <path d="M12.78 15.53a.75.75 0 01-1.06 0l-5-5a.75.75 0 010-1.06l5-5a.75.75 0 111.06 1.06L8.31 9.25h7.44a.75.75 0 010 1.5H8.31l4.47 4.47a.75.75 0 010 1.06z" />
+      {/* icône maison */}
+      <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+        <path
+          d="M3 10.5l9-7 9 7V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1v-9.5z"
+          fill="currentColor"
+        />
       </svg>
-      Accueil
     </Link>
   );
 }
+
 
 const THEMES = [
   { slug: "interieur", label: "Intérieur" },
@@ -213,24 +215,4 @@ function ThemeSwitcherMobile({ current, colors }) {
   );
 }
 
-/** Carte : barre d’accent pleine couleur du thème (via var --c posée sur la feuille) */
-function CardItem({ index, question, reponse }) {
-  return (
-    <li className="group relative overflow-hidden rounded-2xl bg-white ring-1 ring-black/5 shadow-[0_1px_0_rgba(0,0,0,0.03)] before:absolute before:inset-y-0 before:left-0 before:w-1.5 before:[background:var(--c)]">
-      <details className="p-3 sm:p-4">
-        <summary className="flex items-start gap-3 cursor-pointer list-none">
-          <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-[11px] font-semibold text-zinc-700 ring-1 ring-inset ring-black/5">
-            {index}
-          </span>
-          <h3 className="text-base sm:text-[17px] font-semibold leading-tight text-zinc-900 tracking-tight">
-            {question}
-          </h3>
-        </summary>
-        <p className="mt-2 ml-9 text-[13px] leading-relaxed text-zinc-700 whitespace-pre-line">
-          {reponse}
-        </p>
-      </details>
-    </li>
-  );
-}
 

@@ -1,11 +1,39 @@
 import Image from "next/image";
 import Link from "next/link.js";
-import HomeResume from "@/components/HomeResume";
+import HomeProgress from "@/components/HomeProgress";
+import Footer from "@/components/Footer";
+
+
+
 
 export default function Home() {
   return (
     <main className="min-h-screen bg-[#00264d] flex flex-col items-center justify-center px-4 py-8 space-y-6">
-      <h1 className="text-white text-2xl font-bold mb-6">Choisis un thème</h1>
+      {/* En-tête : titre + sous-titre */}
+      <header className="text-center mb-6 sm:mb-8">
+        {/* >>> Choisis 1 des 3 titres ci-dessous (dé-commente celui que tu veux) <<< */}
+
+        {/* 1) sobre + impliquant */}
+        {/* <h1 className="text-white text-3xl sm:text-4xl font-extrabold tracking-tight">
+    Tes vérifications permis
+  </h1> */}
+
+        {/* 2) sérieux + un brin challenge */}
+        <h1 className="mb-15 text-white text-3xl sm:text-4xl font-extrabold tracking-tight">
+          Vérifications permis&nbsp;
+        </h1>
+        
+
+        {/* 3) un peu plus fun mais cadré */}
+        {/* <h1 className="text-white text-3xl sm:text-4xl font-extrabold tracking-tight">
+    Vérif’ ton permis <span aria-hidden>🚦</span>
+  </h1> */}
+
+        <p className="mt-2 text-zinc-300 text-base sm:text-lg">
+          Choisis un thème et entraîne-toi.
+        </p>
+      </header>
+
       <div className="w-full max-w-xs space-y-4">
         <Link
           href="/theme/interieur"
@@ -40,8 +68,10 @@ export default function Home() {
           PREMIER SECOURS
         </Link>
       </div>
-      <HomeResume />{" "}
-      {/* <= le bouton “Continuer là où j’en étais” apparaît ici */}
+      {/* récap par thème (s’affiche seulement s’il y a déjà des vues) */}
+      <HomeProgress />
+      {/* Footer en bas */}
+      <Footer />
     </main>
   );
 }
