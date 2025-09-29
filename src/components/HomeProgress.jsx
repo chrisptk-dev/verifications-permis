@@ -9,162 +9,183 @@ const THEMES = [
   { slug: "secours", label: "Questions PREMIERS SECOURS", color: "#c14d2c" },
 ];
 
-function summarize(obj, total) {
-  // obj = { [id]: 'known'|'doubt'|'unknown' }
-  let known = 0,
-    doubt = 0,
-    unknown = 0,
-    seen = 0;
-  for (const k in obj || {}) {
-    seen++;
-    if (obj[k] === "known") known++;
-    else if (obj[k] === "doubt") doubt++;
-    else if (obj[k] === "unknown") unknown++;
-  }
-  const unseen = Math.max(total - seen, 0);
-  return { known, doubt, unknown, unseen, seen, total };
+/** Ne compte que les "known"; retourne aussi 'seen' pour savoir si l’utilisateur a commencé */
+function summarizeKnown(map, total) {
+  const ids = Object.keys(map || {});
+  const seen = ids.length;
+  let known = 0;
+  for (const k of ids) if (map[k] === "known") known++;
+  const toLearn = Math.max((total || 0) - known, 0);
+  const pctKnown = total ? Math.round((known / total) * 100) : 0;
+  return { seen, known, toLearn, total, pctKnown };
 }
 
 export default function HomeProgress() {
-  const [data, setData] = useState(() => ({})); // { slug: {known,doubt,unknown,unseen,seen,total} }
-  const [countsByTheme, setCountsByTheme] = useState(() => ({})); // { slug: total } si tu veux les totaux depuis le serveur un jour
+  const [rowsData, setRowsData] = useState({}); // {slug: {seen, known, toLearn, total, pctKnown}}
 
-  // Lecture initiale + écoute des changements de storage (autre onglet)
   useEffect(() => {
     const readAll = () => {
       const next = {};
       for (const { slug } of THEMES) {
         try {
-          const raw = localStorage.getItem(`rev-${slug}`);
+          const raw = localStorage.getItem(`rev-${slug}`); // statut des cartes
           const map = raw ? JSON.parse(raw) : {};
-          // total: si tu veux la vraie valeur serveur, remonte-la via props; ici on approxime: total = seen + unseen (on ne connaît pas)
-          // On ne connaît pas "total" depuis la Home — donc on mémorise total=seen+unseen si Home ne le sait pas.
-          // Par défaut, on affichera surtout les catégories vues.
-          const seen = Object.keys(map).length;
-          next[slug] = summarize(map, seen); // sans info serveur, total=seen (unseen=0)
+          const tRaw = localStorage.getItem(`rev-total-${slug}`); // total réel (écrit par TotalWriter)
+          const total = tRaw ? parseInt(tRaw, 10) : 0;
+          next[slug] = summarizeKnown(map, total);
         } catch {
-          next[slug] = summarize({}, 0);
+          next[slug] = { seen: 0, known: 0, toLearn: 0, total: 0, pctKnown: 0 };
         }
       }
-      setData(next);
+      setRowsData(next);
     };
 
     readAll();
+
+    // MAJ si autre onglet modifie le storage ou si un thème dispatch "rev-progress"/"rev-total"
     const onStorage = (e) => {
-      if (!e || (e.key && !e.key.startsWith("rev-"))) return;
-      readAll();
+      if (!e || !e.key) return;
+      if (e.key.startsWith("rev-")) readAll();
     };
+    const onProgress = () => readAll();
+
     window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
+    window.addEventListener("rev-progress", onProgress);
+    window.addEventListener("rev-total", onProgress);
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("rev-progress", onProgress);
+      window.removeEventListener("rev-total", onProgress);
+    };
   }, []);
 
-  // Option : si tu veux injecter les totaux réels un jour (depuis la page ou via props), on fusionnera ici.
-  const rows = useMemo(() => {
-    return THEMES.map((t) => {
-      const s = data[t.slug] || {
-        known: 0,
-        doubt: 0,
-        unknown: 0,
-        unseen: 0,
-        seen: 0,
-        total: 0,
-      };
-      const total = s.total || s.seen; // faute d’info, total = vues
-      const review = s.doubt + s.unknown;
-      const pctKnown = total ? Math.round((s.known / total) * 100) : 0;
-      const pctReview = total ? Math.round((review / total) * 100) : 0;
-      return { ...t, ...s, total, review, pctKnown, pctReview };
-    });
-  }, [data]);
+  const rows = useMemo(
+    () =>
+      THEMES.map((t) => ({
+        ...t,
+        ...(rowsData[t.slug] || {
+          seen: 0,
+          known: 0,
+          toLearn: 0,
+          total: 0,
+          pctKnown: 0,
+        }),
+      })),
+    [rowsData]
+  );
 
-  // Si aucune carte n'a été vue, on n'affiche rien (option UX)
-  const nothingYet = rows.every((r) => r.seen === 0);
-
-  if (nothingYet) return null;
+  // Afficher uniquement si l’utilisateur a AU MOINS commencé un thème
+  const hasStarted = rows.some((r) => r.seen > 0);
+  if (!hasStarted) return null;
 
   return (
     <section className="mt-8 w-full max-w-xl mx-auto">
-      <h2 className="text-white text-lg font-semibold mb-3 text-center">
+      <h2 className="text-white text-lg font-semibold mb-4 text-center">
         Ta progression par thème
       </h2>
 
-      <ul className="space-y-3">
-        {rows.map((r) => (
-          <li
-            key={r.slug}
-            className="rounded-2xl bg-white/95 ring-1 ring-black/5 shadow p-3 sm:p-4"
-            style={{ borderLeft: `6px solid ${r.color}` }}
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-[13px] font-semibold text-zinc-800">
-                  {r.label}
-                </p>
-
-                {/* Compteurs */}
-                <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[12px] text-zinc-700">
-                  <span className="inline-flex items-center gap-1">
-                    ✅ Su: <strong>{r.known}</strong>
-                  </span>
-                  <span className="inline-flex items-center gap-1">
-                    ⚠️ À revoir: <strong>{r.review}</strong>
-                  </span>
-                  <span className="inline-flex items-center gap-1">
-                    👁️ Vues: <strong>{r.seen}</strong>
-                  </span>
+      <div
+        className={`rounded-2xl bg-zinc-50/70 p-3 sm:p-4
+              opacity-0 translate-y-2 animate-[fadeIn_280ms_ease-out_forwards]`
+          .replace(/\s+/g, " ")
+          .trim()}
+      >
+        <ul className="grid gap-4 sm:gap-5">
+          {rows.map((r) => {
+            const pastelBorder = `4px solid color-mix(in srgb, ${r.color} 35%, white)`;
+            const pastelBtn = `color-mix(in srgb, ${r.color} 80%, white)`;
+            const canReset = (r.known ?? 0) > 0;
+            return (
+              <li
+                key={r.slug}
+                className="rounded-2xl bg-white ring-1 ring-zinc-200 shadow-sm p-4 sm:p-5"
+                style={{ borderLeft: pastelBorder }}
+              >
+                {/* Titre + CTA */}
+                <div className="flex items-start justify-between gap-3">
+                  <p className="text-[13px] sm:text-sm font-semibold text-zinc-900">
+                    {r.label}
+                  </p>
+                  <div className="shrink-0 flex flex-col items-end gap-2">
+                    <Link
+                      href={`/theme/${r.slug}`}
+                      className="rounded-full px-3 py-1.5 text-[12px] font-semibold text-white shadow-sm hover:brightness-110 transition"
+                      style={{ background: pastelBtn }}
+                    >
+                      Reprendre
+                    </Link>
+                    <button
+                      onClick={() => {
+                        if (!canReset) return;
+                        try {
+                          localStorage.removeItem(`rev-${r.slug}`);
+                          setRowsData((prev) => ({
+                            ...prev,
+                            [r.slug]: {
+                              ...prev[r.slug],
+                              seen: 0,
+                              known: 0,
+                              toLearn: prev[r.slug]?.total || 0,
+                              pctKnown: 0,
+                            },
+                          }));
+                          window.dispatchEvent(new Event("rev-progress"));
+                        } catch {}
+                      }}
+                      disabled={!canReset}
+                      className={[
+                        "text-[11px] transition",
+                        canReset
+                          ? "text-zinc-500 hover:text-zinc-700 hover:underline"
+                          : "text-zinc-400 cursor-not-allowed opacity-50",
+                      ].join(" ")}
+                      title={
+                        canReset
+                          ? "Réinitialiser ce thème"
+                          : "Rien à réinitialiser"
+                      }
+                    >
+                      Réinitialiser
+                    </button>
+                  </div>
                 </div>
 
-                {/* Barre de progression (su + à revoir) */}
-                <div className="mt-2 h-2 w-full rounded-full bg-zinc-200 overflow-hidden">
-                  <div
-                    className="h-full"
-                    style={{
-                      width: `${r.pctKnown}%`,
-                      background: "#10b981", // emerald
-                    }}
-                    title={`Su: ${r.pctKnown}%`}
-                  />
-                  <div
-                    className="h-full -mt-2"
-                    style={{
-                      width: `${r.pctReview}%`,
-                      background: "#f59e0b", // amber
-                      opacity: 0.9,
-                    }}
-                    title={`À revoir: ${r.pctReview}%`}
-                  />
+                {/* Progression */}
+                <div className="mt-3 sm:mt-4">
+                  <div className="mb-1 flex items-center justify-between text-[12px] text-zinc-700">
+                    <span>✅ {r.known} connues</span>
+                    <span>{r.pctKnown}%</span>
+                  </div>
+                  <div className="h-2 w-full rounded-full bg-zinc-200 overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-emerald-500 transition-all"
+                      style={{ width: `${r.pctKnown}%` }}
+                      aria-label={`Progression ${r.pctKnown}%`}
+                    />
+                  </div>
+                  <div className="mt-1 text-[12px] text-zinc-600">
+                    📘 {r.toLearn} à apprendre
+                  </div>
                 </div>
-              </div>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
 
-              <div className="shrink-0 flex flex-col items-end gap-2">
-                <Link
-                  href={`/theme/${r.slug}`}
-                  className="rounded-full px-3 py-1.5 text-[12px] font-semibold text-white"
-                  style={{ background: r.color }}
-                >
-                  Reprendre
-                </Link>
-                <button
-                  onClick={() => {
-                    try {
-                      localStorage.removeItem(`rev-${r.slug}`);
-                      // Met à jour l’état local
-                      setData((prev) => ({
-                        ...prev,
-                        [r.slug]: summarize({}, 0),
-                      }));
-                    } catch {}
-                  }}
-                  className="text-[11px] text-zinc-600 hover:underline"
-                  title="Réinitialiser ce thème"
-                >
-                  Réinitialiser
-                </button>
-              </div>
-            </div>
-          </li>
-        ))}
-      </ul>
+      {/* keyframes locales pour le fade-in */}
+      <style jsx>{`
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+            transform: translateY(8px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
     </section>
   );
 }
