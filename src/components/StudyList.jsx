@@ -205,11 +205,11 @@ function StudyCard({ index, fiche, isKnown, onKnown, onReview }) {
             {revealed ? "Masquer" : "Réponse"}
           </button>
         </div>
-
+        {/* Bloc qui affiche la réponse */}
         {revealed && (
-          <p className="mt-3 ml-9 whitespace-pre-line text-[13px] leading-relaxed text-zinc-700">
+          <div className="mt-4 mb-6 mx-auto text-sm text-zinc-700 bg-zinc-100 rounded-md px-4 py-3 whitespace-pre-line max-w-[90%]">
             {fiche.reponse}
-          </p>
+          </div>
         )}
 
         {/* Bas de carte : groupe aligné TOUT À DROITE */}

@@ -40,7 +40,7 @@ export default function RemainingBadge({ storageKey, total, color }) {
     <span
       title={`${remaining} à apprendre`}
       aria-label={`${remaining} à apprendre`}
-      className="inline-flex items-center justify-center rounded-full h-5 min-w-5 px-1 text-[11px] font-semibold text-white"
+      className="inline-flex items-center justify-center rounded-full h-7 min-w-7 px-1 text-[14px] font-semibold text-white"
       style={{ backgroundColor: color }}
     >
       {remaining}
