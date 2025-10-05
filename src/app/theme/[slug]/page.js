@@ -4,6 +4,8 @@ import StudyList from "@/components/StudyList";
 import LastVisitedWriter from "@/components/LastVisitedWriter";
 import RemainingBadge from "@/components/RemainingBadge";
 import TotalWriter from "@/components/TotalWriter";
+import KnownBadge from "@/components/KnownBadge";
+
 
 
 
@@ -11,8 +13,9 @@ import TotalWriter from "@/components/TotalWriter";
 
 export const dynamic = "force-dynamic";
 
-export default async function Page({ params }) {
+export default async function Page({ params, searchParams }) {
   const { slug } = await params;
+  const sp = await searchParams;
 
   // 1) Slugs -> libellés
   const themeMap = {
@@ -42,7 +45,10 @@ export default async function Page({ params }) {
     .select("*")
     .eq("themes_id", theme.id);
 
+
   const fiches = Array.isArray(fichesRaw) ? fichesRaw : [];
+  const initialFilter = sp?.filter ?? "default";
+
 
   return (
     <main
@@ -68,19 +74,24 @@ export default async function Page({ params }) {
                 <ThemeSwitcherMobile current={slug} colors={THEME_COLORS} />
               </div>
 
-              {/* L2: Titre + badge (gauche) • Switcher desktop (droite) */}
+              {/* L2: Titre + compteurs (gauche) • Switcher desktop (droite) */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-zinc-900">
                     {theme.label}
                   </h1>
-                  {/* Compteur rond couleur thème = fiches restantes */}
-                  <RemainingBadge
-                    storageKey={`rev-${slug}`}
-                    total={fiches.length}
-                    color={color} // tu l’as déjà calculée plus haut
-                  />
+
+                  {/* Compteur restant + badge connues */}
+                  <div className="flex items-center gap-2">
+                    <RemainingBadge
+                      storageKey={`rev-${slug}`}
+                      total={fiches.length}
+                      color={color}
+                    />
+                    <KnownBadge slug={slug} />
+                  </div>
                 </div>
+
                 <ThemeSwitcherDesktop current={slug} colors={THEME_COLORS} />
               </div>
             </div>
@@ -100,7 +111,11 @@ export default async function Page({ params }) {
               </p>
             ) : (
               <div className="rounded-2xl bg-zinc-50 p-3 sm:p-4">
-                <StudyList fiches={fiches} storageKey={`rev-${slug}`} />
+                <StudyList
+                  fiches={fiches}
+                  storageKey={`rev-${slug}`}
+                  initialFilter={initialFilter}
+                />
               </div>
             )}
           </div>

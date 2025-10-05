@@ -3,7 +3,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import UISwitch from "./UISwitch.jsx";
 import LikeButton from "./LikeButton.jsx";
 
-
 /* --- Hook localStorage (safe SSR) --- */
 function useLocalStorage(key, initialValue) {
   const [state, setState] = useState(initialValue);
@@ -27,9 +26,13 @@ function useLocalStorage(key, initialValue) {
   return [state, setState, hydrated];
 }
 
-
 /* --- Composant principal --- */
-export default function StudyList({ fiches, storageKey }) {
+export default function StudyList({
+  fiches,
+  storageKey,
+  initialFilter = "default",
+}) {
+  // états persistés
   const [statusById, setStatusById, readyStatus] = useLocalStorage(
     storageKey,
     {}
@@ -39,10 +42,15 @@ export default function StudyList({ fiches, storageKey }) {
     false
   );
 
+  // vue dérivée du paramètre initial
+  const [view, setView] = useState(
+    initialFilter === "known" ? "known" : "default"
+  );
+
   const ready = readyStatus && readyShowAll;
   const hasProgress = Object.keys(statusById || {}).length > 0;
 
-  // notifier le compteur global
+  // notifier le compteur global (RemainingBadge / KnownBadge)
   useEffect(() => {
     if (typeof window !== "undefined") {
       window.dispatchEvent(
@@ -51,13 +59,38 @@ export default function StudyList({ fiches, storageKey }) {
     }
   }, [statusById, storageKey]);
 
-  // filtrage
-  const items = useMemo(() => {
-    return showAll
-      ? [...fiches]
-      : fiches.filter((f) => statusById[f.id] !== "known");
-  }, [fiches, showAll, statusById]);
+  // si l'URL change (?filter=...), synchroniser la vue
+  useEffect(() => {
+    setView(initialFilter === "known" ? "known" : "default");
+  }, [initialFilter]);
 
+  // Écoute un ordre de changement de vue (par ex. depuis RemainingBadge)
+  useEffect(() => {
+    function onSetView(e) {
+      if (e?.detail?.key !== storageKey) return;
+      const v = e.detail.view === "known" ? "known" : "default";
+      setView(v);
+    }
+    window.addEventListener("rev-set-view", onSetView);
+    return () => window.removeEventListener("rev-set-view", onSetView);
+  }, [storageKey]);
+
+  // --- filtrage des fiches selon la vue courante ---
+  const items = useMemo(() => {
+    let arr;
+    if (view === "known") {
+      // Vue "connues" : uniquement celles marquées known
+      arr = fiches.filter((f) => statusById[f.id] === "known");
+    } else {
+      // Vue révision : on masque les connues (sauf si "Afficher toutes")
+      arr = showAll
+        ? [...fiches]
+        : fiches.filter((f) => statusById[f.id] !== "known");
+    }
+    return arr;
+  }, [fiches, showAll, statusById, view]);
+
+  // actions
   function setKnown(id) {
     setStatusById((prev) => ({ ...prev, [id]: "known" }));
   }
@@ -68,9 +101,50 @@ export default function StudyList({ fiches, storageKey }) {
       return next;
     });
   }
+
+  // ✅ FIX: réinitialiser vraiment + revenir en vue normale + nettoyer l’URL
   function resetProgress() {
+    // vider l’état persistant
     setStatusById({});
+    // couper "Afficher toutes"
+    setShowAll(false);
+    // revenir en vue "À apprendre"
+    setView("default");
+    // notifier les badges
+    try {
+      window.dispatchEvent(
+        new CustomEvent("rev-progress", { detail: { key: storageKey } })
+      );
+    } catch {}
+
+    // enlever ?filter=known de l’URL (évite de rester bloqué si la page remonte l'URL)
+    try {
+      const url = new URL(window.location.href);
+      if (url.searchParams.has("filter")) {
+        url.searchParams.delete("filter");
+        window.history.replaceState(
+          {},
+          "",
+          url.pathname + (url.search ? `?${url.searchParams}` : "")
+        );
+        // petit fallback si l'objet URL ne conserve pas bien les params
+        if (!url.searchParams.toString()) {
+          window.history.replaceState({}, "", url.pathname);
+        }
+      }
+    } catch {}
   }
+
+  // ✅ FIX UX: si on est en "Connues" et qu'il n'y en a plus, repasser en "À apprendre"
+  useEffect(() => {
+    if (view === "known") {
+      const knownCount = fiches.reduce(
+        (acc, f) => acc + (statusById[f.id] === "known" ? 1 : 0),
+        0
+      );
+      if (knownCount === 0) setView("default");
+    }
+  }, [view, statusById, fiches]);
 
   if (!ready) {
     return <p className="text-sm text-zinc-500">Chargement…</p>;
@@ -81,8 +155,17 @@ export default function StudyList({ fiches, storageKey }) {
       {/* Barre d’actions */}
       <div className="mb-2 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <UISwitch value={showAll} onChange={setShowAll} />
-          <span className="text-[12px] font-medium text-zinc-700 whitespace-nowrap">
+          {/* désactiver le switch en vue 'connues' (sinon c'est incohérent) */}
+          <UISwitch
+            value={showAll}
+            onChange={setShowAll}
+            disabled={view === "known"}
+          />
+          <span
+            className={`text-[12px] font-medium whitespace-nowrap ${
+              view === "known" ? "text-zinc-400" : "text-zinc-700"
+            }`}
+          >
             Afficher toutes les cartes
           </span>
         </div>
@@ -107,22 +190,36 @@ export default function StudyList({ fiches, storageKey }) {
         </button>
       </div>
 
-      {!showAll && items.length === 0 && (
+      {/* état vide (uniquement pour la vue révision) */}
+      {view !== "known" && !showAll && items.length === 0 && (
         <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
           🎉 Tout est connu sur ce thème.
         </div>
       )}
+
       <div className="mt-7 sm:mt-3" />
-      <ul className="grid gap-5 sm:gap-6 md:grid-cols-2">
+      {/* Liste animée des cartes */}
+      <ul
+        className="grid gap-5 sm:gap-6 md:grid-cols-2 transition-all duration-300 ease-in-out"
+        key={view} // 👈 change la clé pour relancer l’animation quand la vue change
+      >
         {items.map((fiche, i) => (
-          <StudyCard
+          <div
             key={fiche.id}
-            index={i + 1}
-            fiche={fiche}
-            isKnown={statusById[fiche.id] === "known"}
-            onKnown={() => setKnown(fiche.id)}
-            onReview={() => unsetKnown(fiche.id)}
-          />
+            className="animate-fadeInUp"
+            style={{
+              animationDelay: `${i * 40}ms`,
+              animationFillMode: "both",
+            }}
+          >
+            <StudyCard
+              index={i + 1}
+              fiche={fiche}
+              isKnown={statusById[fiche.id] === "known"}
+              onKnown={() => setKnown(fiche.id)}
+              onReview={() => unsetKnown(fiche.id)}
+            />
+          </div>
         ))}
       </ul>
     </div>
@@ -184,8 +281,8 @@ function StudyCard({ index, fiche, isKnown, onKnown, onReview }) {
               className="mt-0.5 inline-flex h-6 w-6 shrink-0 select-none items-center justify-center
              rounded-full text-[11px] font-semibold ring-1 ring-inset ring-zinc-200"
               style={{
-                backgroundColor: "color-mix(in srgb, var(--c) 20%, white)", // fond pastel
-                color: "color-mix(in srgb, var(--c) 80%, black)", // texte adouci
+                backgroundColor: "color-mix(in srgb, var(--c) 20%, white)",
+                color: "color-mix(in srgb, var(--c) 80%, black)",
               }}
             >
               {index}
@@ -205,7 +302,7 @@ function StudyCard({ index, fiche, isKnown, onKnown, onReview }) {
             {revealed ? "Masquer" : "Réponse"}
           </button>
         </div>
-        {/* Bloc qui affiche la réponse */}
+
         {revealed && (
           <div className="mt-4 mb-6 mx-auto text-sm text-zinc-700 bg-zinc-100 rounded-md px-4 py-3 whitespace-pre-line max-w-[90%]">
             {fiche.reponse}
