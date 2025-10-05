@@ -1,49 +1,62 @@
 "use client";
 import { useEffect, useState } from "react";
 
-/** Affiche le nombre restant à apprendre (total - connues).
- *  Écoute localStorage + un CustomEvent "rev-progress" pour se rafraîchir instantanément.
- */
 export default function RemainingBadge({ storageKey, total, color }) {
   const [remaining, setRemaining] = useState(total);
-
-  function recompute() {
-    try {
-      const raw = localStorage.getItem(storageKey);
-      const map = raw ? JSON.parse(raw) : {};
-      let known = 0;
-      for (const k of Object.keys(map)) if (map[k] === "known") known++;
-      setRemaining(Math.max(0, total - known));
-    } catch {
-      setRemaining(total);
-    }
-  }
+  const [isPulsing, setIsPulsing] = useState(false); // 👈 pour gérer l’animation
 
   useEffect(() => {
-    recompute(); // initial
-    const onStorage = (e) => {
-      if (e.key === storageKey) recompute();
+    const read = () => {
+      try {
+        const raw = localStorage.getItem(storageKey);
+        const map = raw ? JSON.parse(raw) : {};
+        const known = Object.values(map).filter((v) => v === "known").length;
+        setRemaining(Math.max(total - known, 0));
+      } catch {
+        setRemaining(total);
+      }
     };
-    const onProgress = (e) => {
-      if (e?.detail?.key === storageKey) recompute();
-    };
-    window.addEventListener("storage", onStorage);
-    window.addEventListener("rev-progress", onProgress);
+    read();
+    const rerender = () => read();
+    window.addEventListener("storage", rerender);
+    window.addEventListener("rev-progress", rerender);
     return () => {
-      window.removeEventListener("storage", onStorage);
-      window.removeEventListener("rev-progress", onProgress);
+      window.removeEventListener("storage", rerender);
+      window.removeEventListener("rev-progress", rerender);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storageKey, total]);
 
+  function handleClick() {
+    // 👈 animation brève au clic
+    setIsPulsing(true);
+    setTimeout(() => setIsPulsing(false), 250);
+
+    // ✅ Renvoie StudyList vers la vue “par défaut”
+    window.dispatchEvent(
+      new CustomEvent("rev-set-view", {
+        detail: { key: storageKey, view: "default" },
+      })
+    );
+  }
+
   return (
-    <span
-      title={`${remaining} à apprendre`}
-      aria-label={`${remaining} à apprendre`}
-      className="inline-flex items-center justify-center rounded-full h-7 min-w-7 px-1 text-[14px] font-semibold text-white"
-      style={{ backgroundColor: color }}
+    <button
+      type="button"
+      onClick={handleClick}
+      className={[
+        "inline-flex items-center justify-center rounded-full text-[11px] font-semibold",
+        "text-white hover:opacity-90 transition focus:outline-none focus:ring-2 focus:ring-offset-2",
+        isPulsing ? "scale-110 shadow-lg" : "scale-100 shadow-sm", // 👈 effet pulse
+        "transition-transform duration-200 ease-out",
+      ].join(" ")}
+      style={{
+        backgroundColor: color,
+        minWidth: "28px",
+        height: "28px",
+      }}
+      title="Afficher les cartes restantes"
     >
       {remaining}
-    </span>
+    </button>
   );
 }
