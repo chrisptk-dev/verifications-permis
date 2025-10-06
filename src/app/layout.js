@@ -13,8 +13,10 @@ const geistMono = Geist_Mono({
 
 export const metadata = {
   title: "Vérifications Permis B - Appli interactive",
-  description:
-    "Révise facilement les vérifications pour le permis B.",
+  description: "Révise facilement les vérifications pour le permis B.",
+  icons: {
+    icon: "/favicon.png", // ton nouveau PNG
+  },
 };
 
 export default function RootLayout({ children }) {
