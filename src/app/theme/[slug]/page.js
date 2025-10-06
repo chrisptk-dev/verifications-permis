@@ -1,17 +1,20 @@
 import Link from "next/link";
-import { supabase } from "@/lib/supabaseClient";
+import { getThemeBySlug, getAllThemeSlugs } from "../../../lib/api.js";
 import StudyList from "@/components/StudyList";
 import LastVisitedWriter from "@/components/LastVisitedWriter";
 import RemainingBadge from "@/components/RemainingBadge";
 import TotalWriter from "@/components/TotalWriter";
 import KnownBadge from "@/components/KnownBadge";
 
+export async function generateStaticParams() {
+  const slugs = await getAllThemeSlugs();
+  return slugs.map((slug) => ({ slug }));
+}
 
 
 
 
-
-export const dynamic = "force-dynamic";
+export const dynamic = "force-static";
 
 export default async function Page({ params, searchParams }) {
   const { slug } = await params;
@@ -40,15 +43,20 @@ export default async function Page({ params, searchParams }) {
   const color = THEME_COLORS[slug] ?? THEME_COLORS.interieur;
 
   // 3) Data
-  const { data: fichesRaw, error } = await supabase
-    .from("verifications")
-    .select("*")
-    .eq("themes_id", theme.id);
+  // Gère les slugs "courts" (securite → securite-routiere, secours → premier-secours)
+  const aliasMap = {
+    securite: "securite-routiere",
+    secours: "premier-secours",
+  };
 
+  const realSlug = aliasMap[slug] ?? slug;
 
-  const fiches = Array.isArray(fichesRaw) ? fichesRaw : [];
+  const themeData = await getThemeBySlug(realSlug);
+  if (!themeData)
+    return <main className="p-6 text-red-600">Thème introuvable</main>;
+
+  const fiches = themeData.verifs ?? [];
   const initialFilter = sp?.filter ?? "default";
-
 
   return (
     <main
@@ -99,12 +107,6 @@ export default async function Page({ params, searchParams }) {
 
           {/* Contenu */}
           <div className="px-3 pb-8 pt-4 sm:px-6">
-            {error && (
-              <p className="mb-3 text-sm text-red-600">
-                Erreur : {error.message}
-              </p>
-            )}
-
             {fiches.length === 0 ? (
               <p className="text-zinc-800">
                 Aucune fiche trouvée pour ce thème.
