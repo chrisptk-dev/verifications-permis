@@ -1,5 +1,8 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import Matomo from "@/components/Matomo.jsx";
+
+
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -24,7 +27,9 @@ export default function RootLayout({ children }) {
     <html lang="fr">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+        >
+        <Matomo />  {/* Active Matomo partout */}
+      
         {children}
       </body>
     </html>
