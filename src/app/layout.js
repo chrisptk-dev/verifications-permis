@@ -1,6 +1,7 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Matomo from "@/components/Matomo.jsx";
+import { Suspense } from "react";
 
 
 
@@ -27,9 +28,11 @@ export default function RootLayout({ children }) {
     <html lang="fr">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-        >
-        <Matomo />  {/* Active Matomo partout */}
-      
+      >
+        <Suspense fallback={null}>
+          <Matomo /> {/* Active Matomo partout */}
+        </Suspense>
+
         {children}
       </body>
     </html>
