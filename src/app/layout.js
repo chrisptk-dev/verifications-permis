@@ -32,8 +32,8 @@ export const metadata = {
     images: [
       {
         url: "/logo-application-permis-verifications.png",
-        width: 500,
-        height: 500,
+        width: 1200,
+        height: 630,
         alt: "Logo de l'application",
       },
     ],
